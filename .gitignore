@@ -95,6 +95,13 @@ htmlcov/
 
 # Production builds
 static/
+!static/
+!static/ms1/
+!static/ms1/style.css
+!ms3/static/
+!ms3/static/dashboard.css
+!ms5_model_management/static/
+!ms5_model_management/static/style.css
 media/
 
 # Backup files
