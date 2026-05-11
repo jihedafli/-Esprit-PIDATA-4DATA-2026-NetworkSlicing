@@ -354,20 +354,24 @@ def get_stats() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-def _public_prefix() -> str:
+def _public_prefix(request: Optional[Request] = None) -> str:
+    if request is not None:
+        forwarded_prefix = request.headers.get("x-forwarded-prefix", "")
+        if forwarded_prefix:
+            return forwarded_prefix.rstrip("/")
     return os.getenv("MS1_PUBLIC_PREFIX", "").rstrip("/")
 
 
 @app.get("/ui", tags=["ui"])
-def ui_index_redirect() -> RedirectResponse:
-    p = _public_prefix()
+def ui_index_redirect(request: Request) -> RedirectResponse:
+    p = _public_prefix(request)
     return RedirectResponse(url=(f"{p}/ui/dashboard" if p else "/ui/dashboard"), status_code=302)
 
 
 @app.get("/ui/dashboard", response_class=HTMLResponse, tags=["ui"])
 def ui_dashboard(request: Request) -> Any:
     """MS-1 prediction dashboard (metrics form + last run summary + chart)."""
-    prefix = _public_prefix()
+    prefix = _public_prefix(request)
     chart_url = f"{prefix}/api/ui/chart-series" if prefix else "/api/ui/chart-series"
     return templates.TemplateResponse(
         request,
@@ -452,7 +456,7 @@ def ui_predict(
                     "timestamp": datetime.now().isoformat(),
                 }
             )
-        prefix = _public_prefix()
+        prefix = _public_prefix(request)
         chart_url = f"{prefix}/api/ui/chart-series" if prefix else "/api/ui/chart-series"
         return templates.TemplateResponse(
             request,
@@ -467,7 +471,7 @@ def ui_predict(
         )
     except Exception as e:
         logger.exception("UI predict failed")
-        prefix = _public_prefix()
+        prefix = _public_prefix(request)
         chart_url = f"{prefix}/api/ui/chart-series" if prefix else "/api/ui/chart-series"
         return templates.TemplateResponse(
             request,
@@ -497,7 +501,7 @@ def ui_history(request: Request) -> Any:
     for r in rows:
         cl = (r.get("congestion_level") or "") or ""
         r["congestion_display"] = congestion_display_label(cl) if cl else "—"
-    prefix = _public_prefix()
+    prefix = _public_prefix(request)
     return templates.TemplateResponse(
         request,
         "ms1/history.html",
