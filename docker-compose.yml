@@ -22,7 +22,7 @@ services:
       retries: 10
 
   ms1:
-    image: ${DOCKERHUB_USERNAME:-akrimi12}/network-slicing-backend:${IMAGE_TAG:-latest}
+    image: ${DOCKERHUB_USERNAME:-jihedafli}/network-slicing-backend:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
