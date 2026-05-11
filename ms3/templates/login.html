@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Connexion — NOC Dashboard{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>NOC Dashboard</h1>
+    <p class="muted">Authentification (réseau / slicing)</p>
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="" class="auth-form">
+      <label for="username">Identifiant</label>
+      <input id="username" name="username" type="text" autocomplete="username" required autofocus />
+      <label for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">Se connecter</button>
+    </form>
+    <p class="hint muted">Identifiants par défaut via variables <code>DASHBOARD_USER</code> / <code>DASHBOARD_PASSWORD</code>.</p>
+  </div>
+</div>
+{% endblock %}

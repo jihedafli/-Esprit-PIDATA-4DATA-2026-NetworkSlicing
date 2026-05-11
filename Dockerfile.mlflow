@@ -1,0 +1,13 @@
+# MLflow tracking server UI (Grille Validation MLOps — MLflow integration)
+FROM python:3.10-slim
+
+WORKDIR /app
+RUN pip install --no-cache-dir 'mlflow>=3.11.1,<4'
+
+# Keep artifacts under /app/ml so one compose bind-mount (./ml) shares DB + mlartifacts with the host.
+ENV MLFLOW_ARTIFACT_ROOT=/app/ml/mlartifacts
+
+EXPOSE 5000
+
+# --allowed-hosts: MLflow 3.5+ rejects unknown Host headers (403 from CI container using http://mlflow:5000).
+CMD ["sh", "-c", "mkdir -p /app/ml/mlartifacts && mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts '*' --backend-store-uri sqlite:////app/ml/mlflow.db --default-artifact-root file:/app/ml/mlartifacts"]

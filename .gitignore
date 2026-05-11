@@ -1,0 +1,106 @@
+# Git ignore for 5G Network Slicing project
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+log/
+
+# Data (use Docker volumes instead)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# ML models (use Docker volumes)
+ml/*.joblib
+ml/*.pkl
+!ml/.gitkeep
+
+# MLflow
+ml/mlflow.db
+ml/mlflow.db-journal
+ml/mlruns/
+ml/mlartifacts/
+mlartifacts/
+ml/metadata.json
+ml/mlflow_last_run.json
+ml/registry.json
+
+# Docker
+docker-compose*.local.yml
+docker-compose*.override.yml
+
+# SSL certificates
+ssl/
+*.pem
+*.crt
+*.key
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Production builds
+static/
+media/
+
+# Backup files
+*.bak
+*.backup
+
+# Session files
+*.session
+*.session-journal

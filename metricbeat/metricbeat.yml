@@ -1,0 +1,46 @@
+# Metricbeat 8.11.x — envoi vers Elasticsearch du compose (Kibana pour les dashboards).
+# Voir docker-compose.yml (service metricbeat) pour les montages host (/hostfs, docker.sock).
+
+metricbeat.modules:
+  - module: system
+    period: 10s
+    metricsets:
+      - cpu
+      - load
+      - memory
+      - network
+      - process_summary
+      - diskio
+      - filesystem
+      - fsstat
+    cpu.metrics: [percentages, normalized_percentages]
+    hostfs: /hostfs
+
+  - module: docker
+    period: 10s
+    metricsets:
+      - container
+      - cpu
+      - memory
+      - network
+      - diskio
+    hosts: ["unix:///var/run/docker.sock"]
+
+processors:
+  - add_host_metadata:
+      netinfo.enabled: true
+  - add_docker_metadata: ~
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+
+setup.kibana:
+  host: "http://kibana:5601"
+
+setup.dashboards.enabled: true
+setup.template.enabled: true
+setup.template.settings:
+  index.number_of_shards: 1
+
+logging.level: info
+logging.to_stderr: true

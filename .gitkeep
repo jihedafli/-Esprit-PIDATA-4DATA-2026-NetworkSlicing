@@ -1,0 +1,7 @@
+# Placeholder directories
+ml/
+data/raw/
+data/processed/
+data/test/
+logs/
+__pycache__/

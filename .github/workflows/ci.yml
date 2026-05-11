@@ -1,0 +1,75 @@
+# CI — tout passe dans l’image Docker `ci` (pas de pip sur le runner / l’hôte)
+name: CI
+
+on:
+  push:
+    branches: [main, jihed]
+  pull_request:
+    branches: [main, jihed]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ruff
+        run: docker compose --profile ci run --rm --no-deps ci ruff check .
+
+      - name: Black
+        run: docker compose --profile ci run --rm --no-deps ci black --check .
+
+      - name: Bandit
+        run: docker compose --profile ci run --rm --no-deps ci bandit -c bandit.yaml -r . -ll -q
+
+      - name: pip-audit
+        run: docker compose --profile ci run --rm --no-deps ci pip-audit -r requirements.txt
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        run: docker compose --profile ci run --rm --no-deps ci pytest tests/unit -v
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # App stack only — Elasticsearch/Kibana are heavy and not needed for API tests.
+      - name: Build and start stack
+        run: docker compose up -d --build mysql ms1 ms2 ms3 ms5 nginx mlflow
+
+      - name: Wait for service health endpoints
+        run: |
+          set -e
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:5001/health >/dev/null \
+              && curl -sf http://localhost:5000/health >/dev/null \
+              && curl -sf http://localhost:5003/health >/dev/null \
+              && curl -sf http://localhost:5005/health >/dev/null; then
+              echo "All required services are healthy."
+              exit 0
+            fi
+            echo "Waiting for stack... ($i/90)"
+            sleep 5
+          done
+          echo "Timeout waiting for services."
+          docker compose ps
+          docker compose logs --tail 80
+          exit 1
+
+      - name: Integration tests (API, dans le conteneur ci)
+        run: docker compose --profile ci run --rm --no-deps ci pytest test_api.py -v
+
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs --tail 200

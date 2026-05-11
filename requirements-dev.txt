@@ -1,0 +1,17 @@
+# Local development / integration tests only (not installed in Docker images)
+# Usage:
+#   python -m venv .venv
+#   .\.venv\Scripts\Activate.ps1
+#   pip install -r requirements-dev.txt
+# Then start the stack (docker compose up -d) and run:
+#   python -m pytest test_api.py -v
+
+pytest>=7.4.0
+pytest-cov>=4.1.0
+requests>=2.31.0
+
+# CI: lint, format, security
+ruff>=0.4.0
+black>=24.0.0
+bandit>=1.7.0
+pip-audit>=2.6.0

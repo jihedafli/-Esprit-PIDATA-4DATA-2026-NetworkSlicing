@@ -1,0 +1,11 @@
+exclude_dirs:
+  - tests
+  - ml
+  - .venv
+  - venv
+  - __pycache__
+  - test_api.py
+skips:
+  - B301
+  - B403
+  - B104

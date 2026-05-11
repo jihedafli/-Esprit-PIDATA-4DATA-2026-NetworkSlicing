@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MS-5 Model registry</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header><h1>MS-5 Model management</h1><p><a href="/docs">API docs</a> · JSON <a href="/models">/models</a> · <a href="/">/</a></p></header>
+  {% if error %}<p class="err">{{ error }}</p>{% endif %}
+
+  <section class="card">
+    <h2>Registered in database</h2>
+    <p class="muted">Rows in MySQL <code>model_metrics</code>. Filled when training calls <code>POST /models/register</code> (MS5 must be reachable from the training container) or when you register manually.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Version</th><th>Accuracy</th><th>F1</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in models %}
+        <tr>
+          <td>{{ m.id }}</td>
+          <td>{{ m.model_name }}</td>
+          <td>{{ m.model_version }}</td>
+          <td>{{ m.accuracy }}</td>
+          <td>{{ m.f1_score }}</td>
+          <td>{{ m.training_date }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No registered models in DB.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Artifacts on disk (<code>ml/</code>)</h2>
+    <p class="muted">Files visible inside the MS5 container from <code>ML_ARTIFACTS_PATH</code> (Docker mounts <code>./ml</code> here). This is the same folder <code>scripts/train_models.py</code> writes to (<code>rf_model.pkl</code>, <code>metadata.json</code>, etc.).</p>
+    {% if metadata_bundle %}
+    <p class="muted"><strong>metadata.json</strong>
+      {% if metadata_bundle.error %}— {{ metadata_bundle.error }}{% endif %}
+      {% if metadata_bundle.timestamp %}— trained at {{ metadata_bundle.timestamp }}{% endif %}
+      {% if metadata_bundle.models_saved %}— files: {{ metadata_bundle.models_saved | join(", ") }}{% endif %}
+    </p>
+    {% endif %}
+    <table>
+      <thead>
+        <tr><th>File</th><th>Size (bytes)</th><th>Modified</th></tr>
+      </thead>
+      <tbody>
+        {% for a in artifacts %}
+        <tr>
+          <td class="mono">{{ a.filename }}</td>
+          <td>{{ a.size_bytes }}</td>
+          <td class="mono">{{ a.modified }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3">No <code>.pkl</code> / <code>.h5</code> under the artifacts path (run <code>make train-ci</code> or training script).</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Register (via API)</h2>
+    <p class="muted">POST <code>/models/register</code> with JSON body — use Swagger <a href="/docs">/docs</a>.</p>
+  </section>
+</body>
+</html>

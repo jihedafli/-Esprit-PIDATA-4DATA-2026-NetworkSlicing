@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MS-1 — QoS prediction</title>
+  <link rel="stylesheet" href="{{ public_prefix }}/static/ms1/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="ms1-header">
+    <h1>MS-1 Prediction dashboard</h1>
+    <nav>
+      <a href="{{ public_prefix }}/ui/dashboard">Predict</a>
+      <a href="{{ public_prefix }}/ui/history">History</a>
+      <a href="{{ public_prefix }}/ui/export.csv">Export CSV</a>
+      <a href="{{ public_prefix }}/docs">API docs</a>
+    </nav>
+  </header>
+
+  <main class="ms1-main">
+    {% if error %}
+    <p class="err">{{ error }}</p>
+    {% endif %}
+
+    <section class="card">
+      <h2>Run prediction</h2>
+      <form method="post" action="{{ public_prefix }}/ui/predict" class="pred-form">
+        <fieldset>
+          <legend>Mode</legend>
+          <label><input type="radio" name="prediction_mode" value="5g" {% if not submitted_mode or submitted_mode == '5g' %}checked{% endif %} /> 5G QoS</label>
+          <label><input type="radio" name="prediction_mode" value="congestion" {% if submitted_mode == 'congestion' %}checked{% endif %} /> Congestion</label>
+        </fieldset>
+        <label>Slice id <input name="slice_id" required placeholder="slice_001" /></label>
+        <label>Time (hour) <input name="time" type="number" min="0" max="23" value="12" /></label>
+        <label>PLR <input name="plr" type="number" step="any" required value="0.001" /></label>
+        <label>Delay (ms) <input name="delay" type="number" step="any" required value="50" /></label>
+        <label>LTE/5G cat <input name="lte5g_cat" type="number" value="0" /></label>
+        <label>Jitter (ms) <input name="jitter" type="number" step="any" value="0" /></label>
+        <label>Slice type (1–3, optional) <input name="slice_type" type="number" min="1" max="3" /></label>
+        <details class="flags">
+          <summary>Service flags (0/1)</summary>
+          <label>lte_5g <input name="lte_5g" type="number" min="0" max="1" value="0" /></label>
+          <label>gbr <input name="gbr" type="number" min="0" max="1" value="0" /></label>
+          <label>ar_vr_gaming <input name="ar_vr_gaming" type="number" min="0" max="1" value="0" /></label>
+          <label>healthcare <input name="healthcare" type="number" min="0" max="1" value="0" /></label>
+          <label>industry_4_0 <input name="industry_4_0" type="number" min="0" max="1" value="0" /></label>
+          <label>iot_devices <input name="iot_devices" type="number" min="0" max="1" value="0" /></label>
+          <label>public_safety <input name="public_safety" type="number" min="0" max="1" value="0" /></label>
+          <label>smart_city_home <input name="smart_city_home" type="number" min="0" max="1" value="0" /></label>
+          <label>smart_transportation <input name="smart_transportation" type="number" min="0" max="1" value="0" /></label>
+          <label>smartphone <input name="smartphone" type="number" min="0" max="1" value="0" /></label>
+        </details>
+        <button type="submit">Predict</button>
+      </form>
+    </section>
+
+    {% if last_result %}
+    <section class="card result">
+      <h2>Last result</h2>
+      <dl class="kv">
+        <dt>QoS score</dt><dd>{{ "%.4f"|format(last_result.qos_score) }}</dd>
+        <dt>Congestion (API)</dt><dd>{{ last_result.congestion_level }}</dd>
+        <dt>Congestion (display)</dt><dd>{{ last_result.congestion_display }}</dd>
+        <dt>Pressure</dt><dd>{{ last_result.pressure_index }}</dd>
+        <dt>Pipeline</dt><dd>{{ last_result.pipeline }}</dd>
+        <dt>SLA respected</dt><dd>{{ last_result.sla_respected }}</dd>
+      </dl>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>QoS trend (stored predictions)</h2>
+      <canvas id="qosChart" height="120"></canvas>
+    </section>
+  </main>
+
+  <script>
+    const chartUrl = "{{ chart_url }}";
+    fetch(chartUrl)
+      .then(r => r.json())
+      .then(data => {
+        const labels = data.series.map(p => p.t);
+        const vals = data.series.map(p => p.qos);
+        const ctx = document.getElementById('qosChart');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'QoS score',
+              data: vals,
+              borderColor: '#58a6ff',
+              tension: 0.2,
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { min: 0, max: 1 } }
+          }
+        });
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

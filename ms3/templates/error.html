@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Erreur — NOC{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>Erreur serveur</h1>
+    <p class="muted">Impossible d’afficher le tableau de bord.</p>
+    <pre class="err-detail">{{ message }}</pre>
+    <p><a href="{{ abs_url(request, '/dashboard') }}">Réessayer</a> · <a href="{{ abs_url(request, '/login') }}">Connexion</a></p>
+  </div>
+</div>
+<style>.err-detail { background:#21262d; padding:1rem; border-radius:8px; overflow:auto; font-size:0.85rem; white-space:pre-wrap; }</style>
+{% endblock %}

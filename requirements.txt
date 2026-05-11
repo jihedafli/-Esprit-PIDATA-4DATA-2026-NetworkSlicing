@@ -1,0 +1,38 @@
+# Production / Docker images (MS1, MS2, MS3, MS5 — see Dockerfiles)
+# For running pytest against localhost APIs on your machine, use requirements-dev.txt instead.
+
+# API framework (FastAPI + ASGI server)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# ML models and data processing
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database connectivity
+mysql-connector-python>=8.1.0
+
+# Model optimization and persistence
+optuna>=3.3.0
+joblib>=1.3.0
+
+# MLOps — tracking & model registry (Grille Validation MLOps)
+# 3.11.1+ clears known CVEs reported by pip-audit for the 2.x line.
+mlflow>=3.11.1,<4
+
+# Model explainability
+shap>=0.43.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+pyyaml>=6.0
+
+# Monitoring and metrics
+prometheus-client>=0.18.0
+
+jinja2>=3.1.0
+python-multipart>=0.0.6
+itsdangerous>=2.1.0

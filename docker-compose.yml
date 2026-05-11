@@ -1,0 +1,329 @@
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: network-slicing-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: network_slicing_5g
+      MYSQL_USER: network_user
+      MYSQL_PASSWORD: network_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3307:3306"
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  ms1:
+    image: ${DOCKERHUB_USERNAME:-akrimi12}/network-slicing-backend:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: network-slicing-ms1
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3307
+      DB_USER: network_user
+      DB_PASSWORD: network_pass
+      DB_NAME: network_slicing_5g
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+      MS3_URL: http://ms3:5000
+      CONGESTION_THRESHOLDS_FROM_DB: "true"
+    ports:
+      - "5001:5000"
+    volumes:
+      # Live-reload host code without rebuilding the image (restart ms1 after edits)
+      - ./app.py:/app/app.py:ro
+      - ./congestion_engine.py:/app/congestion_engine.py:ro
+      - ./slice_inference.py:/app/slice_inference.py:ro
+      # Joblib models + features.pkl (excluded from Docker build by .dockerignore)
+      - ./ml:/app/ml:ro
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ms2:
+    build:
+      context: ./anomaly
+      dockerfile: Dockerfile
+    container_name: network-slicing-ms2
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3307
+      DB_USER: network_user
+      DB_PASSWORD: network_pass
+      DB_NAME: network_slicing_5g
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+      # MS2: Keras autoencoder (.h5) + IF; strict AND when both run (see ml/inference.py)
+      AUTOENCODER_PATH: /app/ml/autoencoder.h5
+      SCALER_PATH: /app/ml/scaler.pkl
+      ENCODER_PATH: /app/ml/features.pkl
+      ISO_FOREST_PATH: /app/ml/iso_forest.pkl
+      # Optional: set after each retrain (or use ml/anomaly_threshold.json on host mount)
+      # ANOMALY_THRESHOLD: "1.0"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./ml:/app/ml
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ms3:
+    image: ${DOCKERHUB_USERNAME:-akrimi12}/network-slicing-frontend:${IMAGE_TAG:-latest}
+    build:
+      context: ./ms3
+      dockerfile: Dockerfile
+    container_name: network-slicing-ms3
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3307
+      DB_USER: network_user
+      DB_PASSWORD: network_pass
+      DB_NAME: network_slicing_5g
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+      SECRET_KEY: dashboard-session-secret-change-me
+      SESSION_SECRET: dashboard-session-secret-change-me
+      DASHBOARD_USER: admin
+      DASHBOARD_PASSWORD: changeme
+      MS1_URL: http://ms1:5000
+      MS2_URL: http://ms2:5000
+      MS5_URL: http://ms5:5000
+    ports:
+      - "5003:5000"
+    volumes:
+      - ./ms3/app.py:/app/app.py:ro
+      - ./ms3/templates:/app/templates:ro
+      - ./ms3/static:/app/static:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ms1:
+        condition: service_healthy
+      ms2:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ci:
+    profiles: ["ci"]
+    build:
+      context: .
+      dockerfile: Dockerfile.ci
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - network-slicing-network
+    environment:
+      MS1_URL: http://ms1:5000
+      MS2_URL: http://ms2:5000
+      MS3_URL: http://ms3:5000
+      MS5_URL: http://ms5:5000
+      NGINX_URL: http://nginx
+    depends_on:
+      ms1:
+        condition: service_healthy
+      ms2:
+        condition: service_healthy
+      ms3:
+        condition: service_healthy
+      ms5:
+        condition: service_healthy
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: network-slicing-mlflow
+    restart: unless-stopped
+    environment:
+      # Same as --allowed-hosts in Dockerfile; compose override if needed (DNS rebinding / Host header 403).
+      MLFLOW_SERVER_ALLOWED_HOSTS: "*"
+    ports:
+      - "5006:5000"
+    volumes:
+      - ./ml:/app/ml
+    networks:
+      - network-slicing-network
+
+  ms5:
+    build:
+      context: ./ms5_model_management
+      dockerfile: Dockerfile
+    container_name: network-slicing-ms5
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3307
+      DB_USER: network_user
+      DB_PASSWORD: network_pass
+      DB_NAME: network_slicing_5g
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+      MODELS_PATH: /app/models
+      # Fichiers réels d’entraînement (joblib, etc.) — voir GET /models → artifacts
+      ML_ARTIFACTS_PATH: /app/ml-artifacts
+    ports:
+      - "5005:5000"
+    volumes:
+      - ms5_models:/app/models
+      - ./ml:/app/ml-artifacts:ro
+      - ./ms5_model_management/app.py:/app/app.py:ro
+      - ./ms5_model_management/templates:/app/templates:ro
+      - ./ms5_model_management/static:/app/static:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: network-slicing-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./workflow_ui:/var/www/workflow:ro
+    depends_on:
+      - ms1
+      - ms2
+      - ms3
+      - ms5
+    networks:
+      - network-slicing-network
+
+  # Monitoring — starts with `docker compose up -d` (no profile). First ES boot can take ~60s.
+  # Images are pulled automatically when missing; no separate `docker pull` / `compose pull` step.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.4
+    pull_policy: missing
+    container_name: network-slicing-es
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - ingest.geoip.downloader.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s >/dev/null || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.4
+    pull_policy: missing
+    container_name: network-slicing-kibana
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:5601/api/status >/dev/null || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 36
+      start_period: 90s
+
+  # Métriques machine (system) + conteneurs Docker → indices metricbeat-* dans Elasticsearch.
+  # Montages Linux : sous Docker Desktop (Windows/macOS), les stats host reflètent la VM Linux de Docker.
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.11.4
+    pull_policy: missing
+    container_name: network-slicing-metricbeat
+    restart: unless-stopped
+    user: root
+    command: ["metricbeat", "-e", "-strict.perms=false", "-c", "/usr/share/metricbeat/metricbeat.yml"]
+    volumes:
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    networks:
+      - network-slicing-network
+
+volumes:
+  mysql_data:
+    driver: local
+  ms5_models:
+    driver: local
+  es_data:
+    driver: local
+
+networks:
+  network-slicing-network:
+    driver: bridge
+    internal: false

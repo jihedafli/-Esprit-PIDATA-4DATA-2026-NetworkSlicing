@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Operations — NOC{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <h1>Operations</h1>
+    <nav>
+      <span class="user-label">{{ username }}</span>
+      <a href="{{ abs_url(request, '/dashboard') }}" class="nav-link">Dashboard</a>
+      <a href="{{ abs_url(request, '/logout') }}" class="nav-link logout">Déconnexion</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <section class="panel">
+    <h2>Congestion pressure bands (operator_thresholds)</h2>
+    <p class="muted small">Merged into MS-1 when <code>CONGESTION_THRESHOLDS_FROM_DB=true</code> (profile keys: default, 1, 2, 3, eMBB, mMTC, URLLC).</p>
+    <form method="post" action="{{ abs_url(request, '/ops/thresholds/save') }}" class="compact-form">
+      <label>profile_key <input name="profile_key" required placeholder="3" /></label>
+      <label>pressure_low_max <input name="pressure_low_max" type="number" step="any" required value="25" /></label>
+      <label>pressure_medium_max <input name="pressure_medium_max" type="number" step="any" required value="55" /></label>
+      <button type="submit">Save</button>
+    </form>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Profile</th><th>low_max</th><th>medium_max</th><th>Updated</th></tr></thead>
+        <tbody>
+          {% for t in thresholds %}
+          <tr>
+            <td>{{ t.profile_key }}</td>
+            <td>{{ t.pressure_low_max }}</td>
+            <td>{{ t.pressure_medium_max }}</td>
+            <td class="mono">{{ t.updated_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No overrides (defaults apply).</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Alerts</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Severity</th><th>Message</th><th>Ack</th></tr></thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>{{ a.severity }}</td>
+            <td>{{ a.message }}</td>
+            <td>
+              {% if not a.acknowledged %}
+              <form method="post" action="{{ abs_url(request, '/ops/alerts/ack') }}" style="display:inline;">
+                <input type="hidden" name="alert_id" value="{{ a.id }}" />
+                <button type="submit">Acknowledge</button>
+              </form>
+              {% else %}
+              <span class="muted">OK</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">No alerts.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

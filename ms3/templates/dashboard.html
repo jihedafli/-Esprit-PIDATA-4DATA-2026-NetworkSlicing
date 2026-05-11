@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord — NOC{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <h1>Network Operations Center</h1>
+    <nav>
+      <span class="user-label">{{ username }}</span>
+      <a href="{{ abs_url(request, '/ops') }}" class="nav-link">Operations</a>
+      <a href="{{ abs_url(request, '/docs') }}" class="nav-link">API docs</a>
+      <a href="{{ abs_url(request, '/logout') }}" class="nav-link logout">Déconnexion</a>
+    </nav>
+  </div>
+</header>
+
+<main class="main-content">
+  <section class="metrics">
+    <div class="metric-card">
+      <span class="metric-label">Tranches (24h)</span>
+      <span class="metric-value">{{ data.summary.total_slices_monitored }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">QoS moyen</span>
+      <span class="metric-value">{{ data.summary.avg_qos_score | fmt4 }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Anomalies (24h)</span>
+      <span class="metric-value accent-warn">{{ data.summary.anomalies_detected_24h }}</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Alertes critiques</span>
+      <span class="metric-value accent-bad">{{ data.summary.critical_alerts }}</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Prédictions QoS récentes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Slice</th>
+            <th>QoS</th>
+            <th>Risque</th>
+            <th>SLA</th>
+            <th>Horodatage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in data.predictions %}
+          <tr>
+            <td>{{ p.slice_id or "—" }}</td>
+            <td>{{ p.qos_score | fmt4 }}</td>
+            <td>{{ p.risk_tier or "—" }}</td>
+            <td>{% if p.sla_respected %}✓{% else %}✗{% endif %}</td>
+            <td class="mono">{{ p.timestamp or "—" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">Aucune donnée sur 24h.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Anomalies récentes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Slice</th>
+            <th>Anomalie</th>
+            <th>Score</th>
+            <th>Méthode</th>
+            <th>Horodatage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in data.anomalies %}
+          <tr>
+            <td>{{ a.slice_id or "—" }}</td>
+            <td>{% if a.is_anomaly %}Oui{% else %}Non{% endif %}</td>
+            <td>{{ a.score | fmt4 }}</td>
+            <td>{{ a.method or "—" }}</td>
+            <td class="mono">{{ a.timestamp or "—" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">Aucune anomalie enregistrée.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Alertes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Sévérité</th>
+            <th>Message</th>
+            <th>Slice</th>
+            <th>Horodatage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for al in data.alerts %}
+          <tr>
+            <td>{{ al.alert_type or "—" }}</td>
+            <td><span class="sev {{ (al.severity | default('', true) | string | lower | replace(' ', '-')) }}">{{ al.severity or "—" }}</span></td>
+            <td>{{ al.message or "—" }}</td>
+            <td>{{ al.slice_id or "—" }}</td>
+            <td class="mono">{{ al.timestamp or "—" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">Aucune alerte.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

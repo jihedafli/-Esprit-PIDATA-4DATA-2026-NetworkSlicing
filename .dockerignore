@@ -1,0 +1,94 @@
+# Docker build context
+.DS_Store
+*.log
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Tests (optional - keep if you want tests in image)
+# tests/
+# *.pyc
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Data files (exclude from build - use volumes instead)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# ML models (exclude from build context - mounted as volume)
+ml/*.joblib
+ml/*.pkl
+!ml/.gitkeep
+!ml/*.py
+
+# SSL certificates
+ssl/
+*.pem
+*.crt
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Logs
+logs/
+*.log

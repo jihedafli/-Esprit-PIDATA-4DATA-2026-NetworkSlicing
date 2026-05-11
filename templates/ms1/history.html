@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MS-1 — Prediction history</title>
+  <link rel="stylesheet" href="{{ public_prefix }}/static/ms1/style.css" />
+</head>
+<body>
+  <header class="ms1-header">
+    <h1>Prediction history</h1>
+    <nav>
+      <a href="{{ public_prefix }}/ui/dashboard">Predict</a>
+      <a href="{{ public_prefix }}/ui/export.csv">Export CSV</a>
+    </nav>
+  </header>
+  <main class="ms1-main">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Slice</th>
+          <th>Time</th>
+          <th>QoS</th>
+          <th>Congestion (API)</th>
+          <th>Display</th>
+          <th>Risk</th>
+          <th>SLA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.slice_id }}</td>
+          <td class="mono">{{ r.timestamp }}</td>
+          <td>{{ r.qos_score }}</td>
+          <td>{{ r.congestion_level }}</td>
+          <td>{{ r.congestion_display or '—' }}</td>
+          <td>{{ r.risk_tier }}</td>
+          <td>{% if r.sla_respected %}✓{% else %}✗{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No rows.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

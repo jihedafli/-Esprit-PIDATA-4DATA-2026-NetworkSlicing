@@ -1,0 +1,93 @@
+# Manual CD — same idea as CI (Docker Compose on ubuntu-latest), triggered only when you run it.
+# GitHub → Actions → "CD manual" → Run workflow
+#
+# Secrets (Settings → Secrets and variables → Actions), required if "Push to Docker Hub" is enabled:
+#   DOCKERHUB_USERNAME
+#   DOCKERHUB_TOKEN   (Docker Hub access token, not the account password)
+name: CD manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker Hub tag (backend + frontend images)"
+        required: false
+        default: "latest"
+      push_to_dockerhub:
+        description: "Build and push MS1 (backend) + MS3 (frontend) to Docker Hub"
+        type: boolean
+        default: true
+      run_training_with_mlflow:
+        description: "Run training (MLflow is required; fixtures CSV), upload ml artifacts"
+        type: boolean
+        default: true
+
+jobs:
+  docker-hub:
+    if: ${{ inputs.push_to_dockerhub }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push MS1 + MS3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -e
+          docker compose build ms1 ms3
+          docker compose push ms1 ms3
+
+  train-mlflow:
+    if: ${{ inputs.run_training_with_mlflow }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build MLflow and CI images
+        run: docker compose build mlflow ci
+
+      - name: Start MLflow
+        run: docker compose up -d mlflow
+
+      - name: Wait for MLflow
+        run: |
+          set -e
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:5006/ >/dev/null; then
+              echo "MLflow is up."
+              exit 0
+            fi
+            echo "Waiting for MLflow ($i/90)..."
+            sleep 2
+          done
+          docker compose logs mlflow --tail 80
+          exit 1
+
+      - name: Train with MLflow
+        run: |
+          docker compose --profile ci run --rm --no-deps \
+            -e MLFLOW_TRACKING_URI=http://mlflow:5000 \
+            -e TRAIN_DATA_PATH=tests/fixtures/ci_train.csv \
+            -e DISABLE_MS5_REGISTER=1 \
+            -e DISABLE_ELASTICSEARCH_PUSH=1 \
+            ci python scripts/train_models.py
+
+      - name: Upload ML artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-cd-train
+          path: |
+            ml/metadata.json
+            ml/*.pkl
+          if-no-files-found: warn

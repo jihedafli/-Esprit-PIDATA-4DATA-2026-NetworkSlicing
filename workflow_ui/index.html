@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workflow — Network Slicing</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --ok: #3fb950;
+      --warn: #d29922;
+      --bad: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #161b22 0%, var(--bg) 100%);
+    }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 600; }
+    header p { margin: 0; color: var(--muted); font-size: 0.9rem; max-width: 52rem; }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.05rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    ul { margin: 0; padding-left: 1.2rem; }
+    li { margin-bottom: 0.35rem; }
+    code, .mono { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 0.35rem;
+    }
+    .badge-ci { background: #238636; color: #fff; }
+    .badge-ml { background: #8957e5; color: #fff; }
+    .badge-cd { background: #a371f7; color: #fff; }
+    .badge-todo { background: var(--warn); color: #000; }
+    .grid-links {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .grid-links a {
+      display: block;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #131820;
+    }
+    .grid-links a:hover { border-color: var(--accent); }
+    .health-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .health-row:last-child { border-bottom: none; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; margin-right: 0.5rem; }
+    .dot.ok { background: var(--ok); }
+    .dot.fail { background: var(--bad); }
+    .mermaid { background: #131820; border-radius: 8px; padding: 0.75rem; overflow-x: auto; }
+    .note { color: var(--muted); font-size: 0.88rem; margin-top: 0.5rem; }
+    .placeholder { border-left: 3px solid var(--warn); padding-left: 0.75rem; margin: 0.5rem 0 0; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Workflow projet — Network Slicing</h1>
+    <p>
+      Vue d’ensemble du flux <strong>CI</strong>, <strong>ML</strong>, et structure prévue pour la <strong>CD</strong> / vérifications.
+      Passerelle API nginx en JSON sur <code class="mono">/</code> — cette page est servie sous <code class="mono">/workflow/</code>.
+    </p>
+  </header>
+  <main>
+    <section>
+      <h2>Architecture runtime</h2>
+      <pre class="mermaid">
+flowchart TB
+  subgraph clients["Clients"]
+    U[Navigateur / tests]
+  end
+  NG[Nginx :80]
+  U --> NG
+  NG -->|"/api/ms1/"| MS1[MS1 QoS FastAPI]
+  NG -->|"/api/ms2/"| MS2[MS2 Anomaly FastAPI]
+  NG -->|"/api/ms3/"| MS3[MS3 Dashboard FastAPI]
+  NG -->|"/api/ms5/"| MS5[MS5 Model mgmt FastAPI]
+  MS1 --> DB[(MySQL)]
+  MS2 --> DB
+  MS3 --> DB
+  MS5 --> DB
+  MS2 -.->|artefacts| MLDIR["ml/ joblib pkl"]
+  MLF["MLflow UI :5006"] -.->|tracking| MLDIR
+      </pre>
+      <p class="note">Les ports directs exposés sur l’hôte sont décrits ci‑dessous (ex. MS1 <code>:5001</code>).</p>
+    </section>
+
+    <section>
+      <h2>Liens rapides</h2>
+      <div class="grid-links">
+        <a href="/">Passerelle JSON <code>/</code></a>
+        <a href="/health">Health via nginx → MS1</a>
+        <a href="http://localhost:5001/docs" target="_blank" rel="noopener">MS1 Swagger</a>
+        <a href="http://localhost:5000/docs" target="_blank" rel="noopener">MS2 Swagger</a>
+        <a href="http://localhost:5003/docs" target="_blank" rel="noopener">MS3 Swagger</a>
+        <a href="http://localhost/noc/login">NOC Dashboard (auth)</a>
+        <a href="http://localhost:5003/login">NOC Dashboard direct :5003</a>
+        <a href="http://localhost:5005/docs" target="_blank" rel="noopener">MS5 Swagger</a>
+        <a href="http://localhost:5006" target="_blank" rel="noopener">MLflow UI (compose profile)</a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Santé des services (live)</h2>
+      <p class="note">Requêtes depuis le navigateur vers les ports locaux (CORS autorisé sur les API).</p>
+      <div id="health-checks"></div>
+    </section>
+
+    <section>
+      <h2><span class="badge badge-ci">CI</span> GitHub Actions — <code class="mono">.github/workflows/ci.yml</code></h2>
+      <p>Déclenché sur <strong>push</strong> et <strong>pull_request</strong> vers <code>main</code> / <code>jihed</code> (tout changement de code ou Makefile inclus).</p>
+      <ul>
+        <li><strong>quality</strong> — image Docker <code>ci</code> : Ruff, Black, Bandit, pip-audit</li>
+        <li><strong>unit</strong> — pytest <code>tests/unit</code></li>
+        <li><strong>integration</strong> — <code>docker compose up</code>, attente des <code>/health</code>, puis <code>pytest test_api.py</code></li>
+      </ul>
+      <p class="note">Localement : <code class="mono">make ci</code> reproduit qualité + tests unitaires (sans démarrer la stack).</p>
+    </section>
+
+    <section>
+      <h2><span class="badge badge-ml">ML</span> Pipeline — <code class="mono">.github/workflows/ml-pipeline.yml</code></h2>
+      <p>Déclenché par :</p>
+      <ul>
+        <li><strong>workflow_dispatch</strong> (manuel)</li>
+        <li><strong>schedule</strong> cron hebdomadaire (lundi 06:00 UTC)</li>
+        <li><strong>push</strong> sur fichiers listés dans <code>paths:</code> (scripts d’entraînement, fixtures CI, workflow, dépendances, <strong>Makefile</strong>, …)</li>
+      </ul>
+      <p><strong>Étapes :</strong> entraînement via <code>scripts/train_models.py</code> dans le conteneur <code>ci</code>, upload artefacts <code>ml/metadata.json</code> et <code>ml/*.pkl</code>.</p>
+    </section>
+
+    <section>
+      <h2><span class="badge badge-cd">CD</span> — structure prévue (non implémentée ici)</h2>
+      <p class="placeholder">
+        Prochaine étape typique : build d’images Docker (back / front ou services multiples), push Docker Hub, exposition des métriques MLflow après déploiement, démarrage des conteneurs applicatifs.
+        À brancher sur un workflow dédié (ex. <code class="mono">deploy.yml</code>) avec secrets registry.
+      </p>
+    </section>
+
+    <section>
+      <h2><span class="badge badge-todo">À venir</span> Vérifications post‑déploiement</h2>
+      <ul>
+        <li>Registry Docker Hub — image présente</li>
+        <li>MLflow — expérience, modèles enregistrés, artefacts</li>
+        <li>Interface front — métriques accuracy (front dédié non présent dans ce dépôt)</li>
+        <li>Monitoring ELK — métriques machine / outils / modèle</li>
+      </ul>
+      <p class="note">Non implémenté volontairement pour l’instant ; cette section sert de grille de contrôle future.</p>
+    </section>
+  </main>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: "dark", securityLevel: "loose" });
+
+    const endpoints = [
+      { name: "MS1 QoS", url: "http://localhost:5001/health" },
+      { name: "MS2 Anomaly", url: "http://localhost:5000/health" },
+      { name: "MS3 Dashboard", url: "http://localhost:5003/health" },
+      { name: "MS5 Models", url: "http://localhost:5005/health" },
+      { name: "Nginx racine", url: "http://localhost/" },
+    ];
+
+    const box = document.getElementById("health-checks");
+    endpoints.forEach(({ name, url }) => {
+      const row = document.createElement("div");
+      row.className = "health-row";
+      row.innerHTML =
+        '<span><span class="dot" data-dot></span>' +
+        name +
+        ' <code class="mono">' +
+        url +
+        "</code></span><span data-status>…</span>";
+      box.appendChild(row);
+      const dot = row.querySelector("[data-dot]");
+      const status = row.querySelector("[data-status]");
+      fetch(url, { method: "GET" })
+        .then((r) => {
+          dot.classList.add(r.ok ? "ok" : "fail");
+          status.textContent = r.ok ? "OK " + r.status : "HTTP " + r.status;
+          status.style.color = r.ok ? "var(--ok)" : "var(--bad)";
+        })
+        .catch(() => {
+          dot.classList.add("fail");
+          status.textContent = "indisponible";
+          status.style.color = "var(--bad)";
+        });
+    });
+  </script>
+</body>
+</html>

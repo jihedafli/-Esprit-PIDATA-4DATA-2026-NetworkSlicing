@@ -1,0 +1,59 @@
+# Entraînement ML — uniquement via l’image Docker `ci`
+name: ML pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"
+  push:
+    branches: [main, jihed]
+    paths:
+      - "Makefile"
+      - "scripts/train_models.py"
+      - "scripts/mlflow_integration.py"
+      - "tests/fixtures/ci_train.csv"
+      - ".github/workflows/ml-pipeline.yml"
+      - "Dockerfile.ci"
+      - "requirements.txt"
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start MLflow
+        run: docker compose up -d mlflow
+
+      - name: Wait for MLflow
+        run: |
+          set -e
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:5006/ >/dev/null; then
+              echo "MLflow is up."
+              exit 0
+            fi
+            echo "Waiting for MLflow ($i/90)..."
+            sleep 2
+          done
+          docker compose logs mlflow --tail 80
+          exit 1
+
+      - name: Run training (MLflow + données CI)
+        run: |
+          docker compose --profile ci run --rm --no-deps \
+            -e MLFLOW_TRACKING_URI=http://mlflow:5000 \
+            -e DISABLE_ELASTICSEARCH_PUSH=1 \
+            -e TRAIN_DATA_PATH=tests/fixtures/ci_train.csv \
+            ci python scripts/train_models.py
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-outputs
+          path: |
+            ml/metadata.json
+            ml/*.pkl
+          if-no-files-found: warn
