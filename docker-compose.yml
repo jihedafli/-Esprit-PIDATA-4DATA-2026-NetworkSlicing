@@ -97,7 +97,7 @@ services:
       retries: 3
 
   ms3:
-    image: ${DOCKERHUB_USERNAME:-akrimi12}/network-slicing-frontend:${IMAGE_TAG:-latest}
+    image: ${DOCKERHUB_USERNAME:-jihedafli}/network-slicing-frontend:${IMAGE_TAG:-latest}
     build:
       context: ./ms3
       dockerfile: Dockerfile
