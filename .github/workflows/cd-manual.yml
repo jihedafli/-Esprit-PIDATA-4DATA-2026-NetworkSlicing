@@ -57,12 +57,36 @@ jobs:
       - name: Build MLflow and CI images
         run: docker compose build mlflow ci
 
+      - name: Resolve MLflow target
+        env:
+          REMOTE_MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          set -e
+          if [ -n "$REMOTE_MLFLOW_TRACKING_URI" ]; then
+            echo "EFFECTIVE_MLFLOW_TRACKING_URI=$REMOTE_MLFLOW_TRACKING_URI" >> "$GITHUB_ENV"
+            echo "USE_LOCAL_MLFLOW=false" >> "$GITHUB_ENV"
+            echo "Using remote MLflow tracking URI from secret."
+          else
+            echo "EFFECTIVE_MLFLOW_TRACKING_URI=http://mlflow:5000" >> "$GITHUB_ENV"
+            echo "USE_LOCAL_MLFLOW=true" >> "$GITHUB_ENV"
+            echo "No MLFLOW_TRACKING_URI secret set; using local compose MLflow for this job."
+          fi
+
       - name: Start MLflow
-        run: docker compose up -d mlflow
+        run: |
+          if [ "$USE_LOCAL_MLFLOW" = "true" ]; then
+            docker compose up -d mlflow
+          else
+            echo "Skipping local MLflow; remote tracking URI is configured."
+          fi
 
       - name: Wait for MLflow
         run: |
           set -e
+          if [ "$USE_LOCAL_MLFLOW" != "true" ]; then
+            echo "Remote MLflow configured; skipping local readiness check."
+            exit 0
+          fi
           for i in $(seq 1 90); do
             if curl -sf http://127.0.0.1:5006/ >/dev/null; then
               echo "MLflow is up."
@@ -77,11 +101,17 @@ jobs:
       - name: Train with MLflow
         run: |
           docker compose --profile ci run --rm --no-deps \
-            -e MLFLOW_TRACKING_URI=http://mlflow:5000 \
+            -e MLFLOW_TRACKING_URI="$EFFECTIVE_MLFLOW_TRACKING_URI" \
             -e TRAIN_DATA_PATH=tests/fixtures/ci_train.csv \
             -e DISABLE_MS5_REGISTER=1 \
             -e DISABLE_ELASTICSEARCH_PUSH=1 \
             ci python scripts/train_models.py
+
+      - name: Verify MLflow registry
+        run: |
+          docker compose --profile ci run --rm --no-deps \
+            -e MLFLOW_TRACKING_URI="$EFFECTIVE_MLFLOW_TRACKING_URI" \
+            ci python scripts/version_models.py mlflow-registry
 
       - name: Upload ML artifacts
         uses: actions/upload-artifact@v4
@@ -89,5 +119,8 @@ jobs:
           name: ml-cd-train
           path: |
             ml/metadata.json
+            ml/mlflow_last_run.json
+            ml/mlflow.db
+            ml/mlartifacts/**
             ml/*.pkl
           if-no-files-found: warn

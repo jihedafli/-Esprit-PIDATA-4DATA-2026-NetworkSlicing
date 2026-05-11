@@ -37,6 +37,7 @@ services:
       FLASK_ENV: production
       FLASK_DEBUG: "false"
       MS3_URL: http://ms3:5000
+      MS1_PUBLIC_PREFIX: /prediction
       CONGESTION_THRESHOLDS_FROM_DB: "true"
     ports:
       - "5001:5000"
