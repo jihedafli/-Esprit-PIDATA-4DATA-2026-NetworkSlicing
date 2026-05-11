@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     environment:
       DB_HOST: mysql
-      DB_PORT: 3307
+      DB_PORT: 3306
       DB_USER: network_user
       DB_PASSWORD: network_pass
       DB_NAME: network_slicing_5g
@@ -68,7 +68,7 @@ services:
     restart: unless-stopped
     environment:
       DB_HOST: mysql
-      DB_PORT: 3307
+      DB_PORT: 3306
       DB_USER: network_user
       DB_PASSWORD: network_pass
       DB_NAME: network_slicing_5g
@@ -105,7 +105,7 @@ services:
     restart: unless-stopped
     environment:
       DB_HOST: mysql
-      DB_PORT: 3307
+      DB_PORT: 3306
       DB_USER: network_user
       DB_PASSWORD: network_pass
       DB_NAME: network_slicing_5g
@@ -189,7 +189,7 @@ services:
     restart: unless-stopped
     environment:
       DB_HOST: mysql
-      DB_PORT: 3307
+      DB_PORT: 3306
       DB_USER: network_user
       DB_PASSWORD: network_pass
       DB_NAME: network_slicing_5g
